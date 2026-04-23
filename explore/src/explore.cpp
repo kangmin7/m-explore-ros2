@@ -70,6 +70,7 @@ Explore::Explore()
   this->declare_parameter<float>("gain_scale", 1.0);
   this->declare_parameter<float>("min_frontier_size", 0.5);
   this->declare_parameter<bool>("return_to_init", false);
+  this->declare_parameter<float>("goal_hysteresis", 0.5);
 
   this->get_parameter("planner_frequency", planner_frequency_);
   this->get_parameter("progress_timeout", timeout);
@@ -80,6 +81,7 @@ Explore::Explore()
   this->get_parameter("min_frontier_size", min_frontier_size);
   this->get_parameter("return_to_init", return_to_init_);
   this->get_parameter("robot_base_frame", robot_base_frame_);
+  this->get_parameter("goal_hysteresis", goal_hysteresis_);
 
   progress_timeout_ = timeout;
   move_base_client_ =
@@ -274,6 +276,34 @@ void Explore::makePlan()
 
   // time out if we are not making any progress
   bool same_goal = same_point(prev_goal_, target_position);
+
+  // Hysteresis: avoid oscillating between frontiers by requiring the new best
+  // frontier to be significantly better (by goal_hysteresis_ in cost units)
+  // before abandoning the current goal.
+  if (!same_goal && !goalOnBlacklist(prev_goal_)) {
+    // Find the frontier whose centroid is nearest to the current goal
+    auto current_frontier_it = frontiers.end();
+    double min_dist_sq = std::numeric_limits<double>::max();
+    for (auto it = frontiers.begin(); it != frontiers.end(); ++it) {
+      double dx = it->centroid.x - prev_goal_.x;
+      double dy = it->centroid.y - prev_goal_.y;
+      double dist_sq = dx * dx + dy * dy;
+      if (dist_sq < min_dist_sq) {
+        min_dist_sq = dist_sq;
+        current_frontier_it = it;
+      }
+    }
+    // If the current goal's frontier still exists nearby and isn't blacklisted,
+    // only switch when the new frontier is strictly better by goal_hysteresis_.
+    if (current_frontier_it != frontiers.end() &&
+        std::sqrt(min_dist_sq) < 1.0 &&
+        !goalOnBlacklist(current_frontier_it->centroid) &&
+        frontier->cost >= current_frontier_it->cost - goal_hysteresis_) {
+      frontier = current_frontier_it;
+      target_position = prev_goal_;
+      same_goal = true;
+    }
+  }
 
   prev_goal_ = target_position;
   if (!same_goal || prev_distance_ > frontier->min_distance) {
