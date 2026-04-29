@@ -70,7 +70,8 @@ Explore::Explore()
   this->declare_parameter<float>("gain_scale", 1.0);
   this->declare_parameter<float>("min_frontier_size", 0.5);
   this->declare_parameter<bool>("return_to_init", false);
-  this->declare_parameter<float>("nearby_frontier_threshold", 0.0);
+  this->declare_parameter<float>("goal_hysteresis", 0.0);
+  this->declare_parameter<float>("distance_scale", 0.0);
 
   this->get_parameter("planner_frequency", planner_frequency_);
   this->get_parameter("progress_timeout", timeout);
@@ -81,7 +82,8 @@ Explore::Explore()
   this->get_parameter("min_frontier_size", min_frontier_size);
   this->get_parameter("return_to_init", return_to_init_);
   this->get_parameter("robot_base_frame", robot_base_frame_);
-  this->get_parameter("nearby_frontier_threshold", nearby_frontier_threshold_);
+  this->get_parameter("goal_hysteresis", goal_hysteresis_);
+  this->get_parameter("distance_scale", distance_scale_);
 
   progress_timeout_ = timeout;
   move_base_client_ =
@@ -261,37 +263,28 @@ void Explore::makePlan()
     visualizeFrontiers(frontiers);
   }
 
-  // When nearby_frontier_threshold > 0, prefer frontiers within that radius to
-  // avoid skipping over local unexplored areas in favour of large distant ones.
-  bool has_nearby_frontier = false;
-  if (nearby_frontier_threshold_ > 0.0) {
-    for (const auto& f : frontiers) {
-      if (!goalOnBlacklist(f.centroid)) {
-        double dx = f.centroid.x - pose.position.x;
-        double dy = f.centroid.y - pose.position.y;
-        if (std::sqrt(dx * dx + dy * dy) < nearby_frontier_threshold_) {
-          has_nearby_frontier = true;
-          break;
-        }
-      }
+  // Smooth distance preference: add distance_scale * dist_to_centroid to each
+  // frontier's cost so nearby frontiers are continuously preferred without a
+  // hard radius cutoff. Setting distance_scale = 0 disables this entirely.
+  if (distance_scale_ > 0.0) {
+    for (auto& f : frontiers) {
+      double dx = f.centroid.x - pose.position.x;
+      double dy = f.centroid.y - pose.position.y;
+      f.cost += distance_scale_ * std::sqrt(dx * dx + dy * dy);
     }
+    std::sort(frontiers.begin(), frontiers.end(),
+              [](const frontier_exploration::Frontier& f1,
+                 const frontier_exploration::Frontier& f2) {
+                return f1.cost < f2.cost;
+              });
   }
 
   // find non blacklisted frontier
-  auto frontier = std::find_if_not(
-      frontiers.begin(), frontiers.end(),
-      [this, has_nearby_frontier,
-       &pose](const frontier_exploration::Frontier& f) {
-        if (goalOnBlacklist(f.centroid)) {
-          return true;
-        }
-        if (has_nearby_frontier) {
-          double dx = f.centroid.x - pose.position.x;
-          double dy = f.centroid.y - pose.position.y;
-          return std::sqrt(dx * dx + dy * dy) >= nearby_frontier_threshold_;
-        }
-        return false;
-      });
+  auto frontier =
+      std::find_if_not(frontiers.begin(), frontiers.end(),
+                       [this](const frontier_exploration::Frontier& f) {
+                         return goalOnBlacklist(f.centroid);
+                       });
   if (frontier == frontiers.end()) {
     RCLCPP_WARN(logger_, "All frontiers traversed/tried out, stopping.");
     stop(true);
@@ -300,6 +293,30 @@ void Explore::makePlan()
   geometry_msgs::msg::Point target_position = frontier->centroid;
 
   bool same_goal = same_point(prev_goal_, target_position);
+
+  // Hysteresis: only switch to a new frontier if it is better by at least
+  // goal_hysteresis_ in cost, preventing oscillation between similarly-scored
+  // frontiers. Setting goal_hysteresis = 0 disables this entirely.
+  if (!same_goal && goal_hysteresis_ > 0.0 && !goalOnBlacklist(prev_goal_)) {
+    auto current_it = frontiers.end();
+    double min_dist_sq = std::numeric_limits<double>::max();
+    for (auto it = frontiers.begin(); it != frontiers.end(); ++it) {
+      double dx = it->centroid.x - prev_goal_.x;
+      double dy = it->centroid.y - prev_goal_.y;
+      double dist_sq = dx * dx + dy * dy;
+      if (dist_sq < min_dist_sq) {
+        min_dist_sq = dist_sq;
+        current_it = it;
+      }
+    }
+    if (current_it != frontiers.end() && std::sqrt(min_dist_sq) < 1.0 &&
+        !goalOnBlacklist(current_it->centroid) &&
+        frontier->cost >= current_it->cost - goal_hysteresis_) {
+      frontier = current_it;
+      target_position = prev_goal_;
+      same_goal = true;
+    }
+  }
 
   prev_goal_ = target_position;
   if (!same_goal || prev_distance_ > frontier->min_distance) {
