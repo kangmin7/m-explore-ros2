@@ -253,10 +253,13 @@ void Explore::makePlan()
   }
 
   if (frontiers.empty()) {
-    RCLCPP_WARN(logger_, "No frontiers found, stopping.");
-    stop(true);
+    if (++no_frontier_count_ >= 3) {
+      RCLCPP_WARN(logger_, "No frontiers found, stopping.");
+      stop(true);
+    }
     return;
   }
+  no_frontier_count_ = 0;
 
   // publish frontiers as visualization markers
   if (visualize_) {
@@ -297,7 +300,8 @@ void Explore::makePlan()
   // Hysteresis: only switch to a new frontier if it is better by at least
   // goal_hysteresis_ in cost, preventing oscillation between similarly-scored
   // frontiers. Setting goal_hysteresis = 0 disables this entirely.
-  if (!same_goal && goal_hysteresis_ > 0.0 && !goalOnBlacklist(prev_goal_)) {
+  if (!same_goal && goal_hysteresis_ > 0.0 && prev_goal_valid_ &&
+      !goalOnBlacklist(prev_goal_)) {
     auto current_it = frontiers.end();
     double min_dist_sq = std::numeric_limits<double>::max();
     for (auto it = frontiers.begin(); it != frontiers.end(); ++it) {
@@ -309,16 +313,18 @@ void Explore::makePlan()
         current_it = it;
       }
     }
-    if (current_it != frontiers.end() && std::sqrt(min_dist_sq) < 1.0 &&
+    if (current_it != frontiers.end() &&
+        std::sqrt(min_dist_sq) < 3.0 &&
         !goalOnBlacklist(current_it->centroid) &&
         frontier->cost >= current_it->cost - goal_hysteresis_) {
       frontier = current_it;
-      target_position = prev_goal_;
-      same_goal = true;
+      target_position = current_it->centroid;
+      same_goal = same_point(prev_goal_, target_position);
     }
   }
 
   prev_goal_ = target_position;
+  prev_goal_valid_ = true;
   if (!same_goal || prev_distance_ > frontier->min_distance) {
     // we have different goal or we made some progress
     last_progress_ = this->now();
@@ -403,6 +409,7 @@ void Explore::reachedGoal(const NavigationGoalHandle::WrappedResult& result,
   switch (result.code) {
     case rclcpp_action::ResultCode::SUCCEEDED:
       RCLCPP_DEBUG(logger_, "Goal was successful");
+      prev_goal_valid_ = false;
       break;
     case rclcpp_action::ResultCode::ABORTED:
       RCLCPP_DEBUG(logger_, "Goal was aborted");

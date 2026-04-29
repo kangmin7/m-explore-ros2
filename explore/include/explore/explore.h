@@ -125,6 +125,8 @@ private:
 
   std::vector<geometry_msgs::msg::Point> frontier_blacklist_;
   geometry_msgs::msg::Point prev_goal_;
+  bool prev_goal_valid_ = false;
+  size_t no_frontier_count_ = 0;
   double prev_distance_;
   rclcpp::Time last_progress_;
   size_t last_markers_count_;

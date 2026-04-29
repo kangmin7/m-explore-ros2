@@ -12,5 +12,5 @@
     gain_scale: 1.0
     transform_tolerance: 0.3
     min_frontier_size: 0.75
-    goal_hysteresis: 1.0
-    distance_scale: 2.0
+    goal_hysteresis: 3.0
+    distance_scale: 3.0
