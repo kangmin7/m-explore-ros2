@@ -2,9 +2,7 @@
 
 **Original repo**: [m-explore-ros2](https://github.com/robo-friends/m-explore-ros2)
 
-<video src="media/exploration_spedup.mp4" controls width="100%"></video>
-
-**Full video**: https://www.youtube.com/watch?v=bG_B9l2mHzY
+[![Demo](https://img.youtube.com/vi/bG_B9l2mHzY/maxresdefault.jpg)](https://www.youtube.com/watch?v=bG_B9l2mHzY)
 
 ---
 
