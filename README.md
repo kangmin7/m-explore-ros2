@@ -64,7 +64,7 @@ Repo: https://github.com/kangmin7/slam_toolbox-px4
 ros2 launch slam_toolbox online_async_launch.py use_sim_time:=true
 ```
 
-### 5. Nav2
+### 5. Navigation
 
 Repo: https://github.com/kangmin7/navigation2-px4
 
