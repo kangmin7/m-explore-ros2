@@ -7,7 +7,7 @@
 
 ---
 
-## Added Parameters
+## Changes (Added Parameters)
 
 ### `goal_hysteresis`
 
@@ -27,7 +27,7 @@ Repo: https://github.com/kangmin7/PX4-Autopilot
 
 ```bash
 cd ~/PX4-Autopilot
-make px4_sitl gz_x500_lidar_2d_down PX4_GZ_WORLD=husarion_office_empty
+make px4_sitl gz_x500_lidar_2d PX4_GZ_WORLD=husarion_office_empty
 ```
 
 After PX4 boots, take off:
