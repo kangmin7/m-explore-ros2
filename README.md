@@ -1,6 +1,6 @@
 # m-explore-ros2 for PX4
 
-[m-explore-ros2](https://github.com/robo-friends/m-explore-ros2) for PX4 integration, targeting ROS 2 Humble
+Custom [m-explore-ros2](https://github.com/robo-friends/m-explore-ros2) for PX4 integration, targeting ROS 2 Humble
 
 **Demo**:
 [![Demo](https://img.youtube.com/vi/bG_B9l2mHzY/maxresdefault.jpg)](https://www.youtube.com/watch?v=bG_B9l2mHzY)
