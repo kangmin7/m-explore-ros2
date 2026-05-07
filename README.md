@@ -88,7 +88,7 @@ ros2 service call /mavros/set_mode mavros_msgs/srv/SetMode "{custom_mode: 'OFFBO
 
 ## Docker
 
-A pre-built image with ROS 2 Humble, MAVROS, SLAM Toolbox, Nav2, and PX4 SITL is available on Docker Hub.
+A pre-built image with ROS 2 Humble, PX4, MAVROS, SLAM Toolbox, Nav2, and explore_lite is available on Docker Hub.
 
 ```bash
 docker pull kangmin7/px4-ros2-humble:latest
@@ -104,5 +104,3 @@ docker run -it --rm \
   -v /tmp/.X11-unix:/tmp/.X11-unix:rw \
   kangmin7/px4-ros2-humble:latest
 ```
-
-Or open this repo in VS Code and use **Reopen in Container** via the `.devcontainer` setup.
