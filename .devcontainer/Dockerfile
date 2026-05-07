@@ -155,6 +155,7 @@ RUN . /opt/ros/${ROS_DISTRO}/setup.sh \
 
 # ── 11. Build PX4 SITL (compile only, do not launch simulation) ───────────────
 WORKDIR /workspace/PX4-Autopilot
+RUN bash ./Tools/setup/ubuntu.sh
 RUN make px4_sitl_default
 
 # ── 12. Shell environment ─────────────────────────────────────────────────────
